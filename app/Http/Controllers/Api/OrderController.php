@@ -170,6 +170,89 @@ class OrderController extends Controller
     }
 
     /**
+     * 3. 司機接單 - 將訂單指派給司機，status 改為 ongoing
+     *
+     * 流程：
+     * - 驗證訂單存在且 status 為 matching
+     * - 驗證司機身份與黑名單
+     * - 更新 driver_id、status=ongoing（避免多人同時接同一單）
+     *
+     * @return JsonResponse
+     */
+    public function acceptOrder(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'driver_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $driverId = (int) $validated['driver_id'];
+        $driver = User::findOrFail($driverId);
+
+        // 驗證司機角色
+        if (! isset($driver->role) || $driver->role !== 'driver') {
+            return response()->json([
+                'success' => false,
+                'message' => '僅司機可接單。',
+            ], 403);
+        }
+
+        // 驗證司機非黑名單
+        if ($driver->is_blacklisted) {
+            return response()->json([
+                'success' => false,
+                'message' => '您的帳號已被封鎖，無法接單。',
+            ], 403);
+        }
+
+        $order = Order::find($id);
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => '訂單不存在。',
+            ], 404);
+        }
+
+        if ($order->status !== 'matching') {
+            return response()->json([
+                'success' => false,
+                'message' => '此訂單已被接單或已完成。',
+            ], 422);
+        }
+
+        // 原子更新：避免多人同時接同一單
+        $updated = Order::where('id', $id)
+            ->where('status', 'matching')
+            ->update([
+                'driver_id' => $driverId,
+                'status' => 'ongoing',
+            ]);
+
+        if ($updated === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => '此訂單已被其他司機接走。',
+            ], 409);
+        }
+
+        $order->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => '接單成功，請前往接客。',
+            'data' => [
+                'order_id' => $order->id,
+                'status' => $order->status,
+                'passenger' => $order->passenger ? [
+                    'name' => $order->passenger->name,
+                    'phone' => $order->passenger->phone,
+                ] : null,
+                'start_location' => $order->start_location,
+                'end_location' => $order->end_location,
+            ],
+        ]);
+    }
+
+    /**
      * 使用 Haversine 公式計算兩點間距離（公里）
      *
      * @param float $lat1 起點緯度

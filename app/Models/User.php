@@ -21,6 +21,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone',
+        'role',
+        'is_blacklisted',
+        'is_admin',
     ];
 
     /**
@@ -44,6 +48,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_blacklisted' => 'boolean',
+            'is_admin' => 'boolean',
         ];
     }
 }

@@ -228,6 +228,10 @@ export default {
           end_lat: endCoords.lat,
           end_lng: endCoords.lng,
         };
+        // 若有登入乘客 ID（由 blade 注入），加入 payload
+        if (typeof window.__PASSENGER_ID__ === 'number') {
+          payload.passenger_id = window.__PASSENGER_ID__;
+        }
 
         const { data } = await axios.post('/api/orders', payload);
 
