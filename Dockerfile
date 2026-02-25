@@ -29,3 +29,4 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 # 暴露 8000 埠口並啟動服務
 EXPOSE 8000
 CMD ["sh", "-c", "php -S 0.0.0.0:$PORT -t public"]
+# 修正新檔案名稱
